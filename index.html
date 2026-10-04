@@ -64,6 +64,43 @@
         </div>
       </div>
 
+      <!-- Expense Type Selection (Radio Buttons) -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Expense Category</label>
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Shopping Radio Option -->
+          <label class="relative flex items-center gap-2.5 p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-600 transition">
+            <input 
+              type="radio" 
+              name="expenseType" 
+              value="shopping" 
+              checked 
+              onchange="handleExpenseTypeChange()"
+              class="w-4 h-4 text-indigo-600 bg-slate-800 border-slate-600 focus:ring-indigo-500 focus:ring-offset-slate-900"
+            />
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-white flex items-center gap-1">🛍️ Shopping</span>
+              <span class="text-[10px] text-slate-400">10% off &gt; 5k JPY</span>
+            </div>
+          </label>
+
+          <!-- Travel Radio Option -->
+          <label class="relative flex items-center gap-2.5 p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-600 transition">
+            <input 
+              type="radio" 
+              name="expenseType" 
+              value="travel" 
+              onchange="handleExpenseTypeChange()"
+              class="w-4 h-4 text-indigo-600 bg-slate-800 border-slate-600 focus:ring-indigo-500 focus:ring-offset-slate-900"
+            />
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-white flex items-center gap-1">🚅 Travel / Trains</span>
+              <span class="text-[10px] text-slate-400">No discount (0%)</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <!-- Price Input -->
       <div>
         <div class="flex justify-between items-center mb-1.5">
@@ -71,7 +108,7 @@
             Price in <span id="currencyCodeLabel">JPY</span>
           </label>
           <span id="jpyNotice" class="text-[11px] text-indigo-400 font-medium">
-            &gt; 5,000 JPY auto-applies 10%
+            Shopping &gt; 5,000 JPY auto-applies 10%
           </span>
         </div>
         <div class="relative">
@@ -187,7 +224,7 @@
     };
     let isCustomRate = false;
 
-    // Fetch Live Exchange Rates with Refresh Spinner
+    // Fetch Live Exchange Rates
     async function fetchRates() {
       const spinner = document.getElementById('refreshSpinner');
       spinner.classList.add('animate-spin');
@@ -232,13 +269,16 @@
         btnJPY.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white';
         document.getElementById('currencySymbolPrefix').textContent = '$';
         document.getElementById('jpyNotice').classList.add('hidden');
-        document.getElementById('discountInput').value = '0';
       }
 
       document.getElementById('currencyCodeLabel').textContent = curr;
       document.getElementById('rateCurrencyCode').textContent = curr;
 
       updateRateUI();
+      handlePriceInput(document.getElementById('priceInput'));
+    }
+
+    function handleExpenseTypeChange() {
       handlePriceInput(document.getElementById('priceInput'));
     }
 
@@ -299,7 +339,17 @@
     function applyDiscountDefaultRule(numVal) {
       const discountInput = document.getElementById('discountInput');
       const discountBadge = document.getElementById('discountBadge');
+      const selectedExpense = document.querySelector('input[name="expenseType"]:checked')?.value || 'shopping';
 
+      // Rule for Travel / Trains
+      if (selectedExpense === 'travel') {
+        discountInput.value = '0';
+        discountBadge.textContent = '0% default (Travel/Trains)';
+        discountBadge.className = 'text-[11px] text-slate-400 font-medium';
+        return;
+      }
+
+      // Rule for Shopping
       if (currentCurrency === 'JPY') {
         if (numVal > 5000) {
           discountInput.value = '10';
@@ -311,6 +361,7 @@
           discountBadge.className = 'text-[11px] text-amber-400 font-medium';
         }
       } else {
+        discountInput.value = '0';
         discountBadge.textContent = '0% default for USD';
         discountBadge.className = 'text-[11px] text-slate-400 font-medium';
       }

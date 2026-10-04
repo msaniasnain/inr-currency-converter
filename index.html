@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Currency & Discount Converter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-3 sm:p-4">
+
+  <div class="w-full max-w-md bg-slate-800 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+    
+    <!-- Header -->
+    <div class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 p-4 shrink-0 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>💴 / 💵</span> Currency Converter
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">INR Price & Discount Calculator</p>
+      </div>
+      <span id="rateStatus" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        Live Rate Active
+      </span>
+    </div>
+
+    <!-- Scrollable Body -->
+    <div class="p-4 space-y-4 overflow-y-auto flex-1">
+      
+      <!-- Currency Switcher -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Select Currency</label>
+        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-900/80 rounded-xl border border-slate-700/50">
+          <button id="btnJPY" onclick="setCurrency('JPY')" class="py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white shadow-md">
+            <span>🇯🇵 JPY</span>
+            <span class="text-xs opacity-75 font-normal">(¥)</span>
+          </button>
+          <button id="btnUSD" onclick="setCurrency('USD')" class="py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white">
+            <span>🇺🇸 USD</span>
+            <span class="text-xs opacity-75 font-normal">($)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Price Input -->
+      <div>
+        <div class="flex justify-between items-center mb-1.5">
+          <label for="priceInput" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Price in <span id="currencyCodeLabel">JPY</span>
+          </label>
+          <span id="jpyNotice" class="text-[11px] text-indigo-400 font-medium">
+            &gt; 5,000 JPY auto-applies 10%
+          </span>
+        </div>
+        <div class="relative">
+          <span id="currencySymbolPrefix" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-base">¥</span>
+          <input 
+            type="text" 
+            id="priceInput" 
+            inputmode="numeric" 
+            placeholder="e.g. 6,000" 
+            oninput="handlePriceInput(this)"
+            class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3 pl-9 pr-4 text-lg font-semibold text-white placeholder-slate-600 outline-none transition"
+          />
+        </div>
+      </div>
+
+      <!-- Discount Input -->
+      <div>
+        <div class="flex justify-between items-center mb-1.5">
+          <label for="discountInput" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Discount (%)
+          </label>
+          <span id="discountBadge" class="text-[11px] text-amber-400 font-medium">
+            10% auto-applied
+          </span>
+        </div>
+        <div class="relative">
+          <input 
+            type="number" 
+            id="discountInput" 
+            step="any" 
+            placeholder="0" 
+            oninput="calculate()"
+            class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2.5 px-3.5 text-base font-semibold text-white placeholder-slate-600 outline-none transition pr-8"
+          />
+          <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+        </div>
+      </div>
+
+      <!-- Live Rate Info & Override -->
+      <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-700/40 text-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Exchange Rate Source:</span>
+          <span class="text-slate-300 font-medium" id="rateSourceText">open.er-api.com</span>
+        </div>
+        <div class="flex items-center justify-between pt-1 border-t border-slate-800">
+          <span class="text-slate-400">Rate (1 <span id="rateCurrencyCode">JPY</span> in INR):</span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-500">₹</span>
+            <input 
+              type="number" 
+              id="customRateInput" 
+              step="any" 
+              oninput="handleCustomRateChange()"
+              class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-right font-mono text-xs text-indigo-300 font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculation Breakdown & Final Result -->
+      <div class="bg-gradient-to-br from-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-xl p-4 space-y-3">
+        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider mb-1">Price Summary</div>
+        
+        <div class="space-y-1.5 text-xs text-slate-300">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Original Price:</span>
+            <span id="summaryOriginal" class="font-medium">0 JPY</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Discount Applied:</span>
+            <span id="summaryDiscount" class="text-amber-400 font-medium">0% (-0 JPY)</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Discounted Price:</span>
+            <span id="summaryDiscounted" class="font-medium">0 JPY</span>
+          </div>
+          <div class="flex justify-between pt-1 border-t border-slate-800">
+            <span class="text-slate-400">Base INR (before disc):</span>
+            <span id="summaryBaseINR" class="font-mono text-slate-300">₹0.00</span>
+          </div>
+        </div>
+
+        <!-- Highlighted Final Price -->
+        <div class="pt-3 border-t border-indigo-500/30 flex items-center justify-between">
+          <div>
+            <div class="text-[11px] text-indigo-300 font-medium uppercase tracking-wider">Final Payable Price</div>
+            <div id="finalINR" class="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight">₹0.00</div>
+          </div>
+          <button onclick="copyResult()" class="px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-xs font-semibold rounded-lg transition active:scale-95 flex items-center gap-1.5">
+            <span id="copyText">Copy ₹</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="p-2.5 bg-slate-900/90 border-t border-slate-800 text-center text-[11px] text-slate-500 shrink-0">
+      Single-file HTML web app • Auto-saves last input & rate
+    </div>
+
+  </div>
+
+  <script>
+    let currentCurrency = 'JPY';
+    const rates = {
+      JPY: 0.55,  // Fallback 1 JPY in INR
+      USD: 83.50  // Fallback 1 USD in INR
+    };
+    let isCustomRate = false;
+
+    // Fetch Live Exchange Rates
+    async function fetchRates() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await res.json();
+        if (data && data.rates && data.rates.INR && data.rates.JPY) {
+          rates.USD = data.rates.INR;
+          rates.JPY = data.rates.INR / data.rates.JPY;
+          document.getElementById('rateStatus').textContent = 'Live Rate Updated';
+        }
+      } catch (err) {
+        document.getElementById('rateStatus').textContent = 'Using Fallback Rates';
+        document.getElementById('rateStatus').className = 'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      }
+      updateRateUI();
+      calculate();
+    }
+
+    function setCurrency(curr) {
+      currentCurrency = curr;
+      isCustomRate = false;
+
+      // Toggle Active Buttons
+      const btnJPY = document.getElementById('btnJPY');
+      const btnUSD = document.getElementById('btnUSD');
+      
+      if (curr === 'JPY') {
+        btnJPY.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white shadow-md';
+        btnUSD.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white';
+        document.getElementById('currencySymbolPrefix').textContent = '¥';
+        document.getElementById('jpyNotice').classList.remove('hidden');
+      } else {
+        btnUSD.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white shadow-md';
+        btnJPY.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white';
+        document.getElementById('currencySymbolPrefix').textContent = '$';
+        document.getElementById('jpyNotice').classList.add('hidden');
+        // USD defaults to 0% discount
+        document.getElementById('discountInput').value = '0';
+      }
+
+      document.getElementById('currencyCodeLabel').textContent = curr;
+      document.getElementById('rateCurrencyCode').textContent = curr;
+
+      updateRateUI();
+      // Trigger price handler to apply threshold rule for JPY or 0 for USD
+      handlePriceInput(document.getElementById('priceInput'));
+    }
+
+    function updateRateUI() {
+      if (!isCustomRate) {
+        document.getElementById('customRateInput').value = rates[currentCurrency].toFixed(4);
+      }
+    }
+
+    function handleCustomRateChange() {
+      const val = parseFloat(document.getElementById('customRateInput').value);
+      if (!isNaN(val) && val > 0) {
+        isCustomRate = true;
+        calculate();
+      }
+    }
+
+    // Live Comma Formatting & Cursor Retention
+    function handlePriceInput(input) {
+      let cursorPosition = input.selectionStart;
+      let originalValue = input.value;
+      
+      // Remove commas to get raw number string
+      let rawString = originalValue.replace(/,/g, '');
+      
+      // Allow only digits and decimal point
+      rawString = rawString.replace(/[^0-9.]/g, '');
+      
+      if (rawString === '') {
+        input.value = '';
+        applyDiscountDefaultRule(0);
+        calculate();
+        return;
+      }
+
+      const numVal = parseFloat(rawString);
+
+      // Apply JPY > 5000 Rule (10% if > 5000 JPY, 0% if <= 5000 JPY)
+      applyDiscountDefaultRule(numVal);
+
+      // Format with commas
+      let parts = rawString.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      let formattedValue = parts.join('.');
+
+      // Count digits before cursor to preserve correct position
+      let digitsBeforeCursor = originalValue.substring(0, cursorPosition).replace(/[^0-9.]/g, '').length;
+      
+      input.value = formattedValue;
+
+      // Re-calculate new cursor index
+      let newCursorPos = 0;
+      let digitCount = 0;
+      for (let i = 0; i < formattedValue.length; i++) {
+        if (/[0-9.]/.test(formattedValue[i])) {
+          digitCount++;
+        }
+        if (digitCount === digitsBeforeCursor) {
+          newCursorPos = i + 1;
+          break;
+        }
+      }
+      
+      if (digitsBeforeCursor === 0) newCursorPos = 0;
+      input.setSelectionRange(newCursorPos, newCursorPos);
+
+      calculate();
+    }
+
+    function applyDiscountDefaultRule(numVal) {
+      const discountInput = document.getElementById('discountInput');
+      const discountBadge = document.getElementById('discountBadge');
+
+      if (currentCurrency === 'JPY') {
+        if (numVal > 5000) {
+          discountInput.value = '10';
+          discountBadge.textContent = '10% auto-applied (> 5k JPY)';
+          discountBadge.className = 'text-[11px] text-emerald-400 font-medium';
+        } else {
+          discountInput.value = '0';
+          discountBadge.textContent = '0% default (≤ 5k JPY)';
+          discountBadge.className = 'text-[11px] text-amber-400 font-medium';
+        }
+      } else {
+        discountBadge.textContent = '0% default for USD';
+        discountBadge.className = 'text-[11px] text-slate-400 font-medium';
+      }
+    }
+
+    function calculate() {
+      const rawPrice = document.getElementById('priceInput').value.replace(/,/g, '');
+      const price = parseFloat(rawPrice) || 0;
+      const discountPercent = parseFloat(document.getElementById('discountInput').value) || 0;
+      
+      const activeRate = isCustomRate 
+        ? (parseFloat(document.getElementById('customRateInput').value) || rates[currentCurrency])
+        : rates[currentCurrency];
+
+      const discountAmount = price * (discountPercent / 100);
+      const discountedPrice = price - discountAmount;
+      const baseINR = price * activeRate;
+      const finalINR = discountedPrice * activeRate;
+
+      // Update Summary UI
+      const symbol = currentCurrency === 'JPY' ? '¥' : '$';
+      document.getElementById('summaryOriginal').textContent = `${symbol}${price.toLocaleString()} ${currentCurrency}`;
+      document.getElementById('summaryDiscount').textContent = `${discountPercent}% (-${symbol}${discountAmount.toLocaleString()})`;
+      document.getElementById('summaryDiscounted').textContent = `${symbol}${discountedPrice.toLocaleString()} ${currentCurrency}`;
+      document.getElementById('summaryBaseINR').textContent = `₹${baseINR.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      
+      document.getElementById('finalINR').textContent = `₹${finalINR.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function copyResult() {
+      const text = document.getElementById('finalINR').textContent;
+      navigator.clipboard.writeText(text);
+      const copyText = document.getElementById('copyText');
+      copyText.textContent = 'Copied!';
+      setTimeout(() => {
+        copyText.textContent = 'Copy ₹';
+      }, 1500);
+    }
+
+    // Initialize
+    fetchRates();
+  </script>
+</body>
+</html>

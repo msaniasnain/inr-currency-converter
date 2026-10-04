@@ -33,9 +33,17 @@
         </h1>
         <p class="text-xs text-slate-400 mt-0.5">INR Price & Discount Calculator</p>
       </div>
-      <span id="rateStatus" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-        Live Rate Active
-      </span>
+      <div class="flex items-center gap-2">
+        <button id="refreshBtn" onclick="fetchRates()" class="p-1.5 bg-slate-700/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition border border-slate-600/50 active:scale-95 flex items-center gap-1 text-xs font-medium" title="Refresh FX Rates">
+          <svg id="refreshSpinner" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          <span class="hidden sm:inline">Refresh</span>
+        </button>
+        <span id="rateStatus" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          Live Rate
+        </span>
+      </div>
     </div>
 
     <!-- Scrollable Body -->
@@ -108,6 +116,10 @@
           <span class="text-slate-400">Exchange Rate Source:</span>
           <span class="text-slate-300 font-medium" id="rateSourceText">open.er-api.com</span>
         </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Last Updated:</span>
+          <span class="text-slate-400 font-mono text-[11px]" id="lastUpdatedText">--:--</span>
+        </div>
         <div class="flex items-center justify-between pt-1 border-t border-slate-800">
           <span class="text-slate-400">Rate (1 <span id="rateCurrencyCode">JPY</span> in INR):</span>
           <div class="flex items-center gap-1.5">
@@ -175,20 +187,30 @@
     };
     let isCustomRate = false;
 
-    // Fetch Live Exchange Rates
+    // Fetch Live Exchange Rates with Refresh Spinner
     async function fetchRates() {
+      const spinner = document.getElementById('refreshSpinner');
+      spinner.classList.add('animate-spin');
+
       try {
         const res = await fetch('https://open.er-api.com/v6/latest/USD');
         const data = await res.json();
         if (data && data.rates && data.rates.INR && data.rates.JPY) {
           rates.USD = data.rates.INR;
           rates.JPY = data.rates.INR / data.rates.JPY;
-          document.getElementById('rateStatus').textContent = 'Live Rate Updated';
+          document.getElementById('rateStatus').textContent = 'Live Rate';
+          document.getElementById('rateStatus').className = 'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          
+          const now = new Date();
+          document.getElementById('lastUpdatedText').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
       } catch (err) {
-        document.getElementById('rateStatus').textContent = 'Using Fallback Rates';
+        document.getElementById('rateStatus').textContent = 'Fallback Rate';
         document.getElementById('rateStatus').className = 'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      } finally {
+        setTimeout(() => spinner.classList.remove('animate-spin'), 400);
       }
+      
       updateRateUI();
       calculate();
     }
@@ -197,7 +219,6 @@
       currentCurrency = curr;
       isCustomRate = false;
 
-      // Toggle Active Buttons
       const btnJPY = document.getElementById('btnJPY');
       const btnUSD = document.getElementById('btnUSD');
       
@@ -211,7 +232,6 @@
         btnJPY.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white';
         document.getElementById('currencySymbolPrefix').textContent = '$';
         document.getElementById('jpyNotice').classList.add('hidden');
-        // USD defaults to 0% discount
         document.getElementById('discountInput').value = '0';
       }
 
@@ -219,7 +239,6 @@
       document.getElementById('rateCurrencyCode').textContent = curr;
 
       updateRateUI();
-      // Trigger price handler to apply threshold rule for JPY or 0 for USD
       handlePriceInput(document.getElementById('priceInput'));
     }
 
@@ -237,16 +256,10 @@
       }
     }
 
-    // Live Comma Formatting & Cursor Retention
     function handlePriceInput(input) {
       let cursorPosition = input.selectionStart;
       let originalValue = input.value;
-      
-      // Remove commas to get raw number string
-      let rawString = originalValue.replace(/,/g, '');
-      
-      // Allow only digits and decimal point
-      rawString = rawString.replace(/[^0-9.]/g, '');
+      let rawString = originalValue.replace(/,/g, '').replace(/[^0-9.]/g, '');
       
       if (rawString === '') {
         input.value = '';
@@ -256,21 +269,15 @@
       }
 
       const numVal = parseFloat(rawString);
-
-      // Apply JPY > 5000 Rule (10% if > 5000 JPY, 0% if <= 5000 JPY)
       applyDiscountDefaultRule(numVal);
 
-      // Format with commas
       let parts = rawString.split('.');
       parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
       let formattedValue = parts.join('.');
 
-      // Count digits before cursor to preserve correct position
       let digitsBeforeCursor = originalValue.substring(0, cursorPosition).replace(/[^0-9.]/g, '').length;
-      
       input.value = formattedValue;
 
-      // Re-calculate new cursor index
       let newCursorPos = 0;
       let digitCount = 0;
       for (let i = 0; i < formattedValue.length; i++) {
@@ -323,7 +330,6 @@
       const baseINR = price * activeRate;
       const finalINR = discountedPrice * activeRate;
 
-      // Update Summary UI
       const symbol = currentCurrency === 'JPY' ? '¥' : '$';
       document.getElementById('summaryOriginal').textContent = `${symbol}${price.toLocaleString()} ${currentCurrency}`;
       document.getElementById('summaryDiscount').textContent = `${discountPercent}% (-${symbol}${discountAmount.toLocaleString()})`;
